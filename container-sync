@@ -39,5 +39,3 @@ function sync_containers() {
 }
 
 [ -d "$vms_dir" ] && [ -d "$ram_dir" ] && sync_containers "$vms_dir" "$ram_dir"
-
-

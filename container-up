@@ -1,39 +1,54 @@
 #! /bin/sh
 
-container="$1"
-vms_dir="$2"
-ram_dir="$3"
+ROOT_DIR="$(dirname "$0")"
 
-[ -z "$container" ] || [ -z "$vms_dir" ] || [ -z "$ram_dir" ] && {
-	printf "\033[31mERROR: Empty parameter found:\n\tcontainer: '%s'\n\tvms_dir: '%s'\n\tram_dir: '%s'\n\033[0m" \
-		"$container" \
-		"$vms_dir" \
-		"$ram_dir"
-	exit 1
-}
+source "$ROOT_DIR"/util.sh || exit 1
+
+container="$1"
+img_dir="$2"
+ram_dir="$3"
+perform_common_checks="${4:-y}"
 
 target_container_location="$ram_dir"/"$container"
-[ -d "$target_container_location" ] && {
-	printf "\033[33m[WARNING] The '%s' container has been brought up previously. It will not be reloaded from the disk.\n" "$container"
-        printf "\033[31m[DANGER] \033[0m\033[33mIf you need to reload it remove '%s' directory and start the container again:\n\033[0m" "$target_container_location"
-	printf "\n\trm -rf '%s'\n\n" "$target_container_location"
-	exit 0
+
+container_dir="$img_dir"/"$container"
+
+function perform_checks() {
+	[ "$perform_common_checks" == "y" ] && {
+		common_prechecks "$container" "$img_dir" "$ram_dir" || return 1
+	}
+
+	[ -d "$container_dir" ] || {
+		error 'The "%s" directory of the "%s" container does not exists. Please create the "%s" container.'\
+			"$container_dir" \
+			"$container" \
+			"$container"
+		return 1
+	}
 }
 
-container_dir="$vms_dir"/"$container"
+function container_already_active() {
+	local target_container_location="$1"
 
-[ ! -d "$container_dir" ] && {
-	printf "\033[31mERROR: No container's directory '$container_dir' found. \033[0m" >&2
-	printf "\033[31mPlease create the '$container' container\n\033[0m" >&2
-	exit 1
+	[ -d "$target_container_location" ] && {
+		warn 'The "%s" container has been brought up previously. It will not be reloaded from the disk.' "$container"
+		warn 'If you need to reload it remove the "%s" directory and start the container again:\n\tsudo rm -rf "%s"\n\n' \
+			"$target_container_location" \
+			"$target_container_location"
+	}
 }
 
-[ ! -d "$ram_dir" ] && {
-	echo No "$ram_dir" RAM directory exists >&2
-	exit 1
-}
+function copy_to_ram() {
+	local container="$1"
+	local target_container_location="$2"
 
-printf "\033[32mBringing up '%s' at '%s'...\n\033[0m" "$container" "$target_container_location"
+	info 'Bringing up "%s" at "%s"...' "$container" "$target_container_location"
 
-rsync -a -q --links --recursive --delete -P "$container_dir" "$ram_dir" &&
+	rsync -a -q --links --recursive --delete -P "$container_dir" "$ram_dir" &&
 	printf "\033[32mThe '%s' container is available at '%s'.\n\033[0m" "$container" "$target_container_location"
+}
+
+container_already_active "$target_container_location" || {
+	perform_checks &&
+	copy_to_ram "$container" "$target_container_location"
+}

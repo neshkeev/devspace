@@ -1,125 +1,20 @@
 #! /usr/bin/env bash
 
-MYDIR="$(dirname $0)"
+ROOT_DIR="$(dirname "$0")"
+source "$ROOT_DIR"/util.sh || exit 1
 
-function env_set() {
-	[ -n "$DS_HOME" ]
-}
-
-function get_vms_dir() {
-	env_set && echo "$DS_HOME"/vms || echo "$HOME"/vms
-}
-
-function get_ram_dir() {
-	env_set && echo "$DS_HOME"/ram || echo "$HOME"/vms/ram
-}
-
-function solution_to_clipborad() {
-	local message="$1"
-	[ -z "$message" ] && {
-		echo "Solution is empty" >&2
-		return 1
-	}
-
-	which xclip >/dev/null 2>&1 && {
-		xclip -sel clip <<< "$message" &&
-		result="\033[35m(The command to solve this problem added to X11's clipboard)\033[0m"
-	}
-	echo -e "$result"
-}
-
-function check_container_name() {
-	local container="$1"
-	[ -n "$container" ] || {
-		echo -e '\033[31mERROR: No container name specified. Usage:\033[0m' >&2
-		printf "\t%s CONTAINER_NAME [OPTIONS] \n\n" "$0" >&2
-		return 1
-	}
-}
-
-function dir_exists() {
-	local dir_name="$1"
-	[ -d "$dir_name" ] || {
-		printf '\033[31mERROR: The directory "%s" does not exists, please create one:\n\tmkdir -p %s \033[0m' \
-		       	"$dir_name" "$dir_name" >&2
-
-		solution_to_clipborad "$(printf "mkdir -p %s" "$dir_name")"
-		return 1
-	}
-}
-
-function get_available_mem() {
-	total_mem=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-	available_mem=$((total_mem * 8 / 10))
-	echo "$available_mem"K
-}
-
-function check_tmpfs() {
-	local dir="$1"
-
-	[ ! -d "$dir" ] && {
-		printf "\033[31mERROR: No directory '%s' found. \033[0m" "$dir" >&2
-		return 1
-	}
-
-	$(which df) --type=tmpfs "$dir" >/dev/null 2>&1 || {
-		available_mem=$(get_available_mem)
-
-		printf "\033[31mERROR: The '%s' directory is not mounted into 'tmpfs'. Please mount it:\n\033[0m" "$dir" >&2
-		printf "\tsudo mount -t tmpfs -o rw,nodev,suid,size=%s tmpfs %s\n\t" "$available_mem" "$dir" >&2
-		solution_to_clipborad "$(echo sudo mount -t tmpfs -o rw,nodev,suid,size="$available_mem" tmpfs "$dir")" 
-		return 1
-	}
-}
-
-function prechecks() {
-	local container="$1"
-	local vms_dir="$2"
-	local ram_dir="$3"
-
-	which which >/dev/null &&
-		which df >/dev/null &&
-		which rsync >/dev/null &&
-		which systemd-nspawn >/dev/null &&
-		which sudo >/dev/null &&
-		which grep >/dev/null &&
-		which awk >/dev/null &&
-		check_container_name "$container" &&
-		dir_exists "$vms_dir" &&
-		dir_exists "$ram_dir" &&
-		check_tmpfs "$ram_dir"
-}
-
-function bring_container_up() {
-	local container="$1"
-	local vms_dir="$2"
-	local ram_dir="$3"
-
-	sudo "$MYDIR"/container-up "$container" "$vms_dir" "$ram_dir" 
-}
+command="$1"
 
 function start_container() {
-	local container="$1"
-	local ram_dir="$2"
-	local target_container="$ram_dir"/"$container"
-	shift 2
-
-	[ -d "/tmp/.X11-unix" ] && {
-		xhost +local:
-		bindx11="--bind-ro=/tmp/.X11-unix"
-	} || {
-		printf "\033[31mWARNING: '/tmp/.X11-unix' not found. Graphic applicaitons will not be working inside of the '%s' container\n\033[0m" "$container" >&2
-	}
-	sudo systemd-nspawn -b -D "$target_container" "$bindx11" "$@"
+	"$ROOT_DIR"/container-start "$@"
 }
 
-
-container="$1"
-vms_dir=$(get_vms_dir)
-ram_dir=$(get_ram_dir)
-
-shift
-
-prechecks "$container" "$vms_dir" "$ram_dir" &&
-	bring_container_up "$container" "$vms_dir" "$ram_dir" &&
-	start_container "$container" "$ram_dir" "$@"
+case "$command" in
+	"start")
+		shift
+		start_container "$@"
+		;;
+	*)
+		error 'unknown command "%s"' "$command"
+		;;
+esac

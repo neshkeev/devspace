@@ -1,0 +1,39 @@
+#! /usr/bin/env bash
+
+ROOT_DIR="$(dirname "$0")"
+
+source "$ROOT_DIR"/util.sh || exit 1
+
+function bring_container_up() {
+	local container="$1"
+	local img_dir="$2"
+	local ram_dir="$3"
+
+	sudo "$ROOT_DIR"/container-up "$container" "$img_dir" "$ram_dir"
+}
+
+function start_container() {
+	local container="$1"
+	local ram_dir="$2"
+	local target_container="$ram_dir"/"$container"
+	shift 2
+	local x11_unix="/tmp/.X11-unix"
+
+	[ -d "$x11_unix" ] && {
+		xhost +local:
+		bindx11="--bind-ro=$x11_unix"
+	} || {
+		warn '"%s" not found. X11 graphic applicaitons will not be working inside of the "%s" container' "$x11_unix" "$container"
+	}
+	sudo systemd-nspawn -b -D "$target_container" "$bindx11" "$@"
+}
+
+container="$1"
+img_dir=$(get_img_dir)
+ram_dir=$(get_ram_dir)
+
+shift
+
+common_prechecks "$container" "$img_dir" "$ram_dir" &&
+	bring_container_up "$container" "$img_dir" "$ram_dir" 'n' &&
+	start_container "$container" "$ram_dir" "$@"
