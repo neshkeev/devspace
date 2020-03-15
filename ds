@@ -9,10 +9,34 @@ function start_container() {
 	"$ROOT_DIR"/container-start "$@"
 }
 
+function list_containers() {
+	"$ROOT_DIR"/list-containers "$@"
+}
+
+function pull_container() {
+	"$ROOT_DIR"/pull-container "$@"
+}
+
+function synch_containers() {
+	"$ROOT_DIR"/container-sync "$@"
+}
+
 case "$command" in
 	"start")
 		shift
 		start_container "$@"
+		;;
+	"list")
+		shift
+		list_containers "$@"
+		;;
+	"pull")
+		shift
+		pull_container "$@"
+		;;
+	"sync")
+		shift
+		synch_containers "$@"
 		;;
 	*)
 		error 'unknown command "%s"' "$command"

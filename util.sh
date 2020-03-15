@@ -11,6 +11,25 @@ function is_env_set() {
 	[ -n "${!var}" ]
 }
 
+function get_ds_tmp_dir() {
+	local img_dir="$1"
+	[ -n "$img_dir" ] && {
+		echo "$img_dir"
+		return 0
+	}
+
+	is_env_set "DS_TMP_DIR" && {
+		echo "${DS_TMP_DIR}"
+		return 0
+	}
+	is_env_set "DS_HOME" && {
+		echo "$DS_HOME"/tmp
+		return 0
+	}
+
+	echo "$HOME"/vms/tmp
+}
+
 function get_img_dir() {
 	local img_dir="$1"
 	[ -n "$img_dir" ] && {
@@ -120,7 +139,7 @@ function check_dir_of_fs() {
 }
 
 function check_tools_installed() {
-	for tool in which df rsync systemd-nspawn sudo grep awk ;
+	for tool in which df rsync systemd-nspawn sudo grep awk curl sed tar ;
 	do
 		which "$tool" >/dev/null 2>&1 || {
 			error '%s [NOT FOUND]' "$tool"
@@ -149,4 +168,49 @@ function common_prechecks() {
 		check_container_name "$container" &&
 		ensure_dirs "$img_dir" "$ram_dir" &&
 		check_dir_of_fs "$ram_dir"
+}
+
+function load_latest_release() {
+	curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/neshkeev/devspace/releases/latest
+}
+
+function extract_assets_url() {
+	sed -n '/"assets_url": /{s,.*"\(https:.*\)".*,\1,p;q}'
+}
+
+function load_assets() {
+	read assets_url
+	curl -s -H "Accept: application/vnd.github.v3+json" "$assets_url"
+}
+
+function extract_assets() {
+	# either "name" comes before "browser_download_url" or the other way around
+	sed -n '
+		/"name":/{
+			s,.*"name":.*"\([^"]\+\)".*,\1,;h;
+			:o;n;
+			/"browser_download_url": /!bo;
+			s,.*"\(https:.*\)".*,\1,;
+			H;g;s,\n, ,p;
+		}
+		/"browser_download_url":/{
+			s,.*"browser_download_url":.*"\(https:.*\)".*,\1,;h;
+			:w;n;
+			/"name": /!bw;
+			s,.*"\([^"]\+\)".*,\1,;
+			G;s,\n, ,p;
+		}
+	'
+}
+
+function list_remote_containers() {
+	load_latest_release | extract_assets_url | load_assets | extract_assets
+}
+
+function list_local_containers() {
+	local img_dir=$(get_img_dir)
+
+	dir_exists "$img_dir" || return 1
+
+	find "$img_dir" -maxdepth 1 -type d | grep -v "^$img_dir$" | sed 's,.*/\([^/]\+\).*,\1,'
 }

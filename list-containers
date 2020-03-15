@@ -1,0 +1,28 @@
+#! /usr/bin/env bash
+
+ROOT_DIR="$(dirname "$0")"
+source "$ROOT_DIR"/util.sh || exit 1
+
+command=${1:-local}
+
+function list_local() {
+	list_local_containers
+}
+
+function list_remote() {
+	local filter="$1"
+	list_remote_containers | grep "$filter" -i
+}
+
+case "$command" in
+	"local")
+		list_local
+		;;
+	"remote")
+		shift
+		list_remote "$@"
+		;;
+	*)
+		error '"%s" is unable to handle "%s"' "$0" "$command"
+		;;
+esac
