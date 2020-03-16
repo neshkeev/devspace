@@ -21,6 +21,16 @@ function synch_containers() {
 	"$ROOT_DIR"/container-sync "$@"
 }
 
+function print_version() {
+	sed -n '/version/s,.*=\(.*\),\1,p' VERSION
+}
+
+function print_help() {
+	local version=$(print_version)
+	printf '\n\tds (%s) - devspace is a tool to provide a means to move all the software engineering work to RAM\n' "$version"
+	printf '\tusage:\n\t\t%s start|list|pull|sync|version|help [OPTIONS]\n\n' "$0"
+}
+
 case "$command" in
 	"start")
 		shift
@@ -37,6 +47,14 @@ case "$command" in
 	"sync")
 		shift
 		synch_containers "$@"
+		;;
+	"version")
+		shift
+		print_version "$@"
+		;;
+	"help")
+		shift
+		print_help "$@"
 		;;
 	*)
 		error 'unknown command "%s"' "$command"
