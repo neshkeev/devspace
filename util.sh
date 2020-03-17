@@ -73,7 +73,6 @@ function solution_to_clipborad() {
 	local message="$1"
 	[ -z "$message" ] && {
 		error "Solution is empty. Nothing has been added to X11's clipboard" >&2
-		return 1
 	}
 
 	which xclip >/dev/null 2>&1 && {
@@ -106,7 +105,6 @@ function calc_available_ram() {
 	local percentage=$(("${1:-80}" / 10))
 	[ "$percentage" -lt 10 ] || {
 		error "Unable to allocate %d%% of RAM" "$((percentage * 10))"
-		return 1
 	}
 
 	local total_mem=$(grep MemTotal /proc/meminfo | awk '{print $2}')
@@ -155,7 +153,6 @@ function check_container_name() {
 	local container="$1"
 	[ -n "$container" ] || {
 		error 'No container name specified. Usage:\n\t%s CONTAINER_NAME [OPTIONS]\n\n' "$0"
-		return 1
 	}
 }
 

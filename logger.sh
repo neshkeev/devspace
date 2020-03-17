@@ -39,10 +39,12 @@ function warn() {
 	local msg="$1"
 	shift
 	printf "\033[33m[WARNING]: $msg\n\033[0m" "$@" >&2
+	return 1
 }
 
 function error() {
 	local msg="$1"
 	shift
 	printf "\033[31m[ERROR]: $msg\n\033[0m" "$@" >&2
+	return 1
 }

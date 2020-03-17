@@ -23,7 +23,6 @@ function perform_checks() {
 			"$container_dir" \
 			"$container" \
 			"$container"
-		return 1
 	}
 }
 

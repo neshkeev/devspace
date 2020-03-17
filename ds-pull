@@ -66,7 +66,6 @@ function extract_container() {
 	container_root_in_tar=$(tar -tf "$from" | head -n 1)
 	[ -z "$container_root_in_tar" ] && {
 		error 'Unable to determine the root inside of the "%s" tar archive' "$from"
-		return 1
 	}
 
 	local actual_container_location="$to"/"$container_root_in_tar"
