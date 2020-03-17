@@ -45,7 +45,7 @@ function copy_to_ram() {
 	info 'Bringing up "%s" at "%s"...' "$container" "$target_container_location"
 
 	rsync -a -q --links --recursive --delete -P "$container_dir" "$ram_dir" &&
-	printf "\033[32mThe '%s' container is available at '%s'.\n\033[0m" "$container" "$target_container_location"
+		success 'The "%s" container is available at "%s".\n' "$container" "$target_container_location"
 }
 
 container_already_active "$target_container_location" || {

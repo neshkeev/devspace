@@ -14,6 +14,19 @@ function list_remote() {
 	list_remote_containers | grep "$filter" -i
 }
 
+function list_active() {
+	local filter="${1:-*}"
+
+	local ram_dir=$(get_ram_dir)
+
+	for container_dir in $(find "$ram_dir" -maxdepth 1 -type d -name "*$filter*");
+	do
+		[ "$container_dir" == "$ram_dir" ] && continue
+
+		echo "$(basename "$container_dir")"
+	done
+}
+
 case "$command" in
 	"local")
 		list_local
@@ -21,6 +34,10 @@ case "$command" in
 	"remote")
 		shift
 		list_remote "$@"
+		;;
+	"active")
+		shift
+		list_active "$@"
 		;;
 	*)
 		error '"%s" is unable to handle "%s"' "$0" "$command"

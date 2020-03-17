@@ -126,7 +126,7 @@ function check_dir_of_fs() {
 		return 1
 	}
 
-	$(which df) --type="$fs" "$dir" >/dev/null 2>&1 || {
+	df --type="$fs" "$dir" >/dev/null 2>&1 || {
 		local available_mem=$(calc_available_ram)
 		error 'The "%s" directory is not mounted into "%s". Please mount it:\n\tsudo mount -t %s -o rw,nodev,suid,size=%s %s %s\n' \
 			"$dir" "$fs" "$fs" "$available_mem" "$fs" "$dir"
@@ -141,13 +141,13 @@ function check_dir_of_fs() {
 function check_tools_installed() {
 	for tool in which df rsync systemd-nspawn sudo grep awk curl sed tar ;
 	do
-		which "$tool" >/dev/null 2>&1 || {
+		type "$tool" >/dev/null 2>&1 || {
 			error '%s [NOT FOUND]' "$tool"
 			solution_to_clipborad "sudo pacman -S $tool"
 			return 1
 		}
 
-		success '%s [FOUND]' $(which "$tool")
+		success '%s [FOUND]' "$(type "$tool")"
 	done
 }
 

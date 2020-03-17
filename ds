@@ -5,22 +5,6 @@ source "$ROOT_DIR"/util.sh || exit 1
 
 command="$1"
 
-function start_container() {
-	"$ROOT_DIR"/container-start "$@"
-}
-
-function list_containers() {
-	"$ROOT_DIR"/list-containers "$@"
-}
-
-function pull_container() {
-	"$ROOT_DIR"/pull-container "$@"
-}
-
-function synch_containers() {
-	"$ROOT_DIR"/container-sync "$@"
-}
-
 function print_version() {
 	sed -n '/version/s,.*=\(.*\),\1,p' VERSION
 }
@@ -32,22 +16,6 @@ function print_help() {
 }
 
 case "$command" in
-	"start")
-		shift
-		start_container "$@"
-		;;
-	"list")
-		shift
-		list_containers "$@"
-		;;
-	"pull")
-		shift
-		pull_container "$@"
-		;;
-	"sync")
-		shift
-		synch_containers "$@"
-		;;
 	"version")
 		shift
 		print_version "$@"
@@ -57,6 +25,10 @@ case "$command" in
 		print_help "$@"
 		;;
 	*)
-		error 'unknown command "%s"' "$command"
+		shift
+		script="ds-$command"
+		type "$script" >/dev/null 2>&1 ||
+			error 'unknown command "%s"' "$command" &&
+			"$script" "$@"
 		;;
 esac

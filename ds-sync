@@ -1,0 +1,36 @@
+#! /bin/sh
+
+ROOT_DIR="$(dirname "$0")"
+source "$ROOT_DIR"/util.sh || exit 1
+
+img_dir=$(get_img_dir)
+ram_dir=$(get_ram_dir)
+container="${1:-*}"
+
+function sync_container() {
+	local img_dir="$1"
+	while read container_ram_dir;
+	do
+		local container="$(basename "$container_ram_dir")"
+
+		local target_dir="$img_dir"/"$container"
+		info_blue 'Synchronizing "%s" from "%s" to "%s"...' "$container" "$container_ram_dir" "$target_dir"
+
+		sudo rsync -a -q --recursive --links --delete -P "$container_ram_dir"/ "$target_dir" &&
+			success '"%s" synchronized.\n' "$container"
+	done
+
+}
+
+function sync_containers() {
+	local img_dir="$1"
+	local ram_dir="$2"
+	local container="$3"
+
+	find "$ram_dir" -maxdepth 1 -type d -name "$container" |
+		grep -v "^$ram_dir$" |
+		sync_container "$img_dir"
+}
+
+ensure_dirs "$img_dir" "$ram_dir" &&
+	sync_containers "$img_dir" "$ram_dir" "$container"
