@@ -3,9 +3,6 @@
 ROOT_DIR="$(dirname "$0")"
 source "$ROOT_DIR"/util.sh || exit 1
 
-
-option="$1"
-
 function file_exists() {
 	local path="$1"
 	[ -d "$path" ] || {
@@ -57,6 +54,8 @@ function remove_image() {
 	local base_dir="$(get_img_dir)"
 	remove "$base_dir" "$@"
 }
+
+option="$1"
 
 case "$option" in
 	"-i"|"--active")

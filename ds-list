@@ -6,7 +6,8 @@ source "$ROOT_DIR"/util.sh || exit 1
 command=${1:-local}
 
 function list_local() {
-	list_local_containers
+	local filter="$1"
+	list_local_containers | grep "$filter"
 }
 
 function list_remote() {
@@ -29,7 +30,8 @@ function list_active() {
 
 case "$command" in
 	"local")
-		list_local
+		shift
+		list_local "$@"
 		;;
 	"remote")
 		shift

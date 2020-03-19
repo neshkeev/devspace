@@ -1,12 +1,16 @@
 #! /usr/bin/env bash
 
+set -x
+
 ROOT_DIR="$(dirname "$0")"
 source "$ROOT_DIR"/util.sh || exit 1
 
-function container_already_exists() {
+function container_not_exists() {
 	local container="$1"
 
-	list_local_containers | grep -q "^$container$"
+	list_local_containers | grep -q "^$container$" ||
+		return 0 &&
+		warn 'The "%s" container already exists. No containers will be pulled' "$container"
 }
 
 function ensure_tmp_dir() {
@@ -14,11 +18,6 @@ function ensure_tmp_dir() {
 
 	[ ! -d "$base_tmp_dir" ] && mkdir -p "$base_tmp_dir"
 	return 0
-}
-
-function container_already_downloaded() {
-	local container_file="$1"
-	[ -f "$container_file" ]
 }
 
 function find_container() {
@@ -31,16 +30,74 @@ function get_container_url() {
 }
 
 function download_container() {
-	local downloaded_location="$1"
-
-	read container_url;
+	local container_url="$1"
+	local downloaded_location="$2"
 
 	curl -Lo "$downloaded_location" "$container_url"
 }
 
-function download() {
+function extract_container() {
+	local base_tmp_dir="$1"
+	local container="$2"
+	local to="$3"
+	local desired_name="$4"
+
+	local from="$base_tmp_dir"/"$container".tgz
+
+	container_root_in_tar=$(tar -tf "$from" | head -n 1)
+	[ -z "$container_root_in_tar" ] && {
+		error 'Unable to determine the root inside of the "%s" tar archive' "$from"
+		return 1
+	}
+
+	local extracted_container_location="$base_tmp_dir"/"$container_root_in_tar"
+	local desired_container_location="$to"/"$desired_name"
+
+	[ -f "$extracted_container_location" ] && rm -rf "$extracted_container_location"
+
+	tar -C "$base_tmp_dir" -xf "$from" &&
+		mv "$extracted_container_location" "$desired_container_location"
+}
+
+function parse_args() {
+	while : ; do
+		value="$1"
+		info 'processing "%s"' "$value"
+
+		case "$value" in
+			"-u"|"--url") shift
+				url="$1"
+				;;
+			*) [ -z "$container" ] &&
+				container="$value" || {
+					[ -z "$desired_name" ] &&
+						desired_name="$value" ||
+						error 'Unknown option "%s"' "$value"
+				}
+				;;
+		esac
+		local valid="$?"
+
+		[ "$valid" -ne "0" ] && return 1
+
+		shift && [ -n "$1" ] || break
+	done
+}
+
+function init_variables() {
+	desired_name="${desired_name:-"$container"}"
+	downloaded_location="$base_tmp_dir"/"$container".tgz
+}
+
+function get_url() {
 	local container="$1"
-	local downloaded_location="$2"
+	find_container "$container" | get_container_url
+}
+
+function download() {
+	local downloaded_location="$1"
+	local container="$2"
+	local url="${3:-$(get_url "$container")}"
 
 	[ -f "$downloaded_location" ] && {
 		warn 'The "%s" container has already been pulled before, "%s" will be reused' "$container" "$downloaded_location"
@@ -49,47 +106,18 @@ function download() {
 		return 0
 	}
 
-	find_container "$container" | get_container_url | download_container "$downloaded_location"
+	[ -n "$url" ] &&
+		download_container "$url" "$downloaded_location" ||
+		error 'The "%s" container not found' "$container"
 }
-
-function needs_to_move() {
-	local actual="$1"
-	local desired="2"
-	[ "$actual" != "$desired" ]
-}
-
-function extract_container() {
-	local from="$1"
-	local to="$2"
-	local desired_name="$3"
-
-	container_root_in_tar=$(tar -tf "$from" | head -n 1)
-	[ -z "$container_root_in_tar" ] && {
-		error 'Unable to determine the root inside of the "%s" tar archive' "$from"
-	}
-
-	local actual_container_location="$to"/"$container_root_in_tar"
-	local desired_container_location="$to"/"$desired_name"
-
-	tar -C "$to" -xf "$from" &&
-		needs_to_move "$actual_container_location" "$desired_container_location" &&
-		mv "$actual_container_location" "$desired_container_location"
-}
-
-container="$1"
-desired_name="${2:-$container}"
 
 base_tmp_dir=$(get_ds_tmp_dir)
 img_dir=$(get_img_dir)
 
-downloaded_location="$base_tmp_dir"/"$container".tgz
-
-container_already_exists "$desired_name" && {
-	warn 'The "%s" container already exists. No containers will be pulled' "$desired_name"
-	exit 1
-}
-
-check_container_name "$container" &&
-	ensure_tmp_dir "$base_tmp_dir" &&
-	download "$container" "$downloaded_location" &&
-	extract_container "$downloaded_location" "$img_dir" "$desired_name"
+parse_args "$@" &&
+	init_variables &&
+	check_container_name "$container" &&
+	ensure_dirs "$base_tmp_dir" "$img_dir" &&
+	container_not_exists "$desired_name" &&
+	download "$downloaded_location" "$container" "$url" &&
+	extract_container "$base_tmp_dir" "$container" "$img_dir" "$desired_name"
