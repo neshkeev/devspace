@@ -1,7 +1,5 @@
 #! /usr/bin/env bash
 
-set -x
-
 ROOT_DIR="$(dirname "$0")"
 source "$ROOT_DIR"/util.sh || exit 1
 
@@ -38,13 +36,11 @@ function download_container() {
 
 function extract_container() {
 	local base_tmp_dir="$1"
-	local container="$2"
+	local from="$2"
 	local to="$3"
 	local desired_name="$4"
 
-	local from="$base_tmp_dir"/"$container".tgz
-
-	container_root_in_tar=$(tar -tf "$from" | head -n 1)
+	local container_root_in_tar=$(tar -tf "$from" | head -n 1)
 	[ -z "$container_root_in_tar" ] && {
 		error 'Unable to determine the root inside of the "%s" tar archive' "$from"
 		return 1
@@ -55,14 +51,13 @@ function extract_container() {
 
 	[ -f "$extracted_container_location" ] && rm -rf "$extracted_container_location"
 
-	tar -C "$base_tmp_dir" -xf "$from" &&
+	tar --checkpoint=1000 --checkpoint-action=dot -C "$base_tmp_dir" -xzf "$from" && echo &&
 		mv "$extracted_container_location" "$desired_container_location"
 }
 
 function parse_args() {
 	while : ; do
-		value="$1"
-		info 'processing "%s"' "$value"
+		local value="$1"
 
 		case "$value" in
 			"-u"|"--url") shift
@@ -86,7 +81,7 @@ function parse_args() {
 
 function init_variables() {
 	desired_name="${desired_name:-"$container"}"
-	downloaded_location="$base_tmp_dir"/"$container".tgz
+	downloaded_location="$base_tmp_dir"/"$container".tar.gz
 }
 
 function get_url() {
@@ -120,4 +115,4 @@ parse_args "$@" &&
 	ensure_dirs "$base_tmp_dir" "$img_dir" &&
 	container_not_exists "$desired_name" &&
 	download "$downloaded_location" "$container" "$url" &&
-	extract_container "$base_tmp_dir" "$container" "$img_dir" "$desired_name"
+	extract_container "$base_tmp_dir" "$downloaded_location" "$img_dir" "$desired_name"

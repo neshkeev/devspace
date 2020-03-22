@@ -13,7 +13,7 @@ function file_exists() {
 function remove_confirmed() {
 	local path="$1"
 
-	read -p "Removing $path?[Y/n] " confirm
+	read -p "Removing $path? [Y/n] " confirm
 	local confirm=${confirm:-Y}
 
 	[ "${confirm^^}" == "Y" ]

@@ -1,0 +1,70 @@
+#! /usr/bin/env bash
+
+ROOT_DIR="$(dirname "$0")"
+source "$ROOT_DIR"/util.sh || exit 1
+
+img_dir=$(get_img_dir)
+base_tmp_dir=$(get_ds_tmp_dir)
+
+function parse_args() {
+	while : ; do
+		local value="$1"
+
+		case "$value" in
+			"-C"|"--directory")
+				shift
+				target_dir="$1"
+				[ -n "$target_dir" ] || error "No target directory specified"
+				;;
+			"-n"|"--name")
+				shift
+				archive_name="$1"
+				;;
+			*)
+				[ -z "$container" ] &&
+					container="$value" ||
+					error "Container value specified twice: first '%s', second '%s'" "$container" "$value"
+				;;
+		esac
+
+		local valid="$?"
+		[ "$valid" -ne "0" ] && return 1
+
+		shift && [ -n "$1" ] || break
+
+	done
+}
+
+function init_args() {
+	archive_name="${archive_name:-"$container"}"
+	[[ "$archive_name" == *.tar.gz ]] || archive_name="$archive_name".tar.gz
+
+	target_dir="${target_dir:-"$(get_ds_tmp_dir)"}"
+	container_location="$img_dir"/"$container"
+	target_file="$target_dir"/"$archive_name"
+}
+
+function validate_args() {
+	ensure_dirs "$target_dir" "$img_dir" || return 1
+
+	check_container_name "$container" || return 1
+
+	sudo rm -rf "$target_file"
+
+	[ -d "$container_location" ] ||
+		error 'No "%s" container found inside in "%s"' "$container" "$container_location"
+}
+
+function create_archive() {
+	local container="$1"
+	local target_dir="$2"
+	local img_dir="$3"
+
+	sudo tar --checkpoint=1000 --checkpoint-action=dot -czPf "$target_file" -C "$img_dir" "$container"
+}
+
+parse_args "$@" &&
+	init_args &&
+	validate_args &&
+	create_archive "$container" "$target_dir" "$img_dir" &&
+	success '\n%s' "$target_file"
