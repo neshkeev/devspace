@@ -51,8 +51,8 @@ function extract_container() {
 
 	[ -f "$extracted_container_location" ] && rm -rf "$extracted_container_location"
 
-	tar --checkpoint=1000 --checkpoint-action=dot -C "$base_tmp_dir" -xzf "$from" && echo &&
-		mv "$extracted_container_location" "$desired_container_location"
+	sudo tar --checkpoint=1000 --checkpoint-action=dot -C "$base_tmp_dir" -xzf "$from" && echo &&
+		sudo mv "$extracted_container_location" "$desired_container_location"
 }
 
 function parse_args() {

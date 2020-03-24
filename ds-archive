@@ -66,5 +66,5 @@ function create_archive() {
 parse_args "$@" &&
 	init_args &&
 	validate_args &&
-	create_archive "$container" "$target_dir" "$img_dir" &&
-	success '\n%s' "$target_file"
+	create_archive "$container" "$target_dir" "$img_dir" && echo &&
+	success '%s' "$target_file"
