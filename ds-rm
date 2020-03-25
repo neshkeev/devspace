@@ -1,0 +1,104 @@
+#! /usr/bin/env bash
+
+ROOT_DIR="$(dirname "$0")"
+source "$ROOT_DIR"/util.sh || exit 1
+
+function file_exists() {
+	local path="$1"
+	[ -d "$path" ] || {
+		warn '"%s" does not exists' "$path"
+	}
+}
+
+function remove_confirmed() {
+	local path="$1"
+
+	read -p "Proceed with removing $path? [Y/n] " confirm
+	local confirm=${confirm:-Y}
+
+	[ "${confirm^^}" == "Y" ]
+}
+
+function remove_file() {
+	local path="$1"
+
+	(
+		local errors=$(mktemp)
+		trap "rm $errors" EXIT
+
+		local output=$(sudo rm "$path" -r 2>"$errors" && echo '"'"$path"'"' removed)
+
+		[ -n "$output" ] && success "$output" || error "$(cat "$errors")"
+	)
+}
+
+function remove() {
+	local base_dir="$1"
+
+	shift
+
+	for container in "$@"
+	do
+		local path="$base_dir"/"$container"
+
+		file_exists "$path" &&
+			remove_confirmed "$path" &&
+			remove_file "$path"
+	done
+}
+
+function remove_booted() {
+	local container="$1"
+
+	local base_dir=$(get_ram_dir)
+	remove "$base_dir" "$container"
+}
+
+function remove_local_container() {
+	local container="$1"
+
+	local base_dir="$(get_img_dir)"
+	remove "$base_dir" "$container"
+}
+
+function remove_container() {
+	local option="${1:--l}"
+	local container="$2"
+
+	[ "$option" == "-l" ] &&
+		remove_local_container "$container" ||
+		remove_booted "$container"
+}
+
+function parse_args() {
+	while : ; do
+		local value="$1"
+
+		case "$value" in
+			"-l"|"--local")
+				[ -z "$option" ] &&
+					option="-l" ||
+					error "please specify either '-l' or '-b'"
+				;;
+			"-b"|"--booted")
+				[ -z "$option" ] &&
+					option="-b" ||
+					error "please specify either '-l' or '-b'"
+				;;
+			*)
+				[ -z "$container" ] &&
+					container="$value" ||
+					error "Unable to remove multiple containers at once"
+				;;
+		esac
+
+		local valid="$?"
+		[ "$valid" -ne "0" ] && return 1
+
+		shift && [ -n "$1" ] || break
+	done
+
+	[ -n "$container" ] || error "No container specified"
+}
+
+parse_args "$@" && remove_container "$option" "$container"
