@@ -75,7 +75,7 @@ function solution_to_clipborad() {
 	}
 
 	which xclip >/dev/null 2>&1 && {
-		xclip -sel clip <<< "$message" &&
+		xclip -sel clip <<< "$message" &> /dev/null &&
 		info_purple "The command to solve the problem above added to X11's clipboard"
 	}
 }
