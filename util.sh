@@ -215,3 +215,10 @@ function list_local_containers() {
 
 	find "$img_dir" -maxdepth 1 -type d | grep -v "^$img_dir$" | sed 's,.*/\([^/]\+\).*,\1,'
 }
+
+function remove_suffix() {
+	local value="$1"
+	local suffix="$2"
+
+	sed 's,\(.*\)'"$suffix"',\1,' <<<"$value"
+}

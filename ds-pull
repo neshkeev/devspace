@@ -1,5 +1,7 @@
 #! /usr/bin/env bash
 
+set -x
+
 ROOT_DIR="$(dirname "$0")"
 source "$ROOT_DIR"/util.sh || exit 1
 
@@ -9,13 +11,6 @@ function container_not_exists() {
 	list_local_containers | grep -q "^$container$" ||
 		return 0 &&
 		warn 'The "%s" container already exists. No containers will be pulled' "$container"
-}
-
-function ensure_tmp_dir() {
-	local base_tmp_dir="$1"
-
-	[ ! -d "$base_tmp_dir" ] && mkdir -p "$base_tmp_dir"
-	return 0
 }
 
 function find_container() {
@@ -31,7 +26,9 @@ function download_container() {
 	local container_url="$1"
 	local downloaded_location="$2"
 
-	curl -Lo "$downloaded_location" "$container_url"
+	shift 2
+
+	curl -Lo "$downloaded_location" "$container_url" "$@"
 }
 
 function extract_container() {
@@ -55,32 +52,43 @@ function extract_container() {
 		sudo mv "$extracted_container_location" "$desired_container_location"
 }
 
-function parse_args() {
-	while : ; do
-		local value="$1"
+function init_url() {
+	local value="$1"
 
-		case "$value" in
-			"-u"|"--url") shift
-				url="$1"
-				;;
-			*) [ -z "$container" ] &&
-				container="$value" || {
-					[ -z "$desired_name" ] &&
-						desired_name="$value" ||
-						error 'Unknown option "%s"' "$value"
-				}
-				;;
-		esac
-		local valid="$?"
+	[ -z "$container" ] || {
+		error 'The "--url" and the remote container name "%s" cannot be used together' "$container"
+		return 1
+	}
 
-		[ "$valid" -ne "0" ] && return 1
+	[ -z "$url" ] &&
+		url="$value" ||
+		error 'Multiple "--url" options found:\n\tcurrent: "%s"\n\tprevious:"%s"\n' "$value" "$url"
+}
 
-		shift && [ -n "$1" ] || break
-	done
+function get_container_name_from_url() {
+	local url="$1"
+
+	sed 's,.*/\(.*\),\1,' <<<"$url"
 }
 
 function init_variables() {
+	[ -z "$desired_name" -a -z "$container" -a -z "$url" ] && {
+		error 'Unable to proceed with empty options'
+		return 1
+	}
+
+	[ -n "$url" ] && {
+		container=$(get_container_name_from_url "$url")
+		container=$(remove_suffix "$container" ".tar.gz")
+	}
+
+	[ -z "$container" ] && {
+		error 'Unable to deduce the container name from the "%s" url' "$url"
+		return 1
+	}
+
 	desired_name="${desired_name:-"$container"}"
+
 	downloaded_location="$base_tmp_dir"/"$container".tar.gz
 }
 
@@ -93,26 +101,52 @@ function download() {
 	local downloaded_location="$1"
 	local container="$2"
 	local url="${3:-$(get_url "$container")}"
+	shift 3
 
 	[ -f "$downloaded_location" ] && {
 		warn 'The "%s" container has already been pulled before, "%s" will be reused' "$container" "$downloaded_location"
 		warn 'If you want to pull the container again, please execute: rm -v "%s"' "$downloaded_location"
-		solution_to_clipborad "rm -v $download_container"
+		solution_to_clipborad "rm -v $downloaded_location"
 		return 0
 	}
 
-	[ -n "$url" ] &&
-		download_container "$url" "$downloaded_location" ||
-		error 'The "%s" container not found' "$container"
+	[ -z "$url" ] &&
+		error 'The "%s" container not found' "$container" ||
+		download_container "$url" "$downloaded_location" "$@"
 }
 
 base_tmp_dir=$(get_ds_tmp_dir)
 img_dir=$(get_img_dir)
 
-parse_args "$@" &&
+while : ; do
+	value="$1"
+
+	case "$value" in
+		"--url")
+			shift
+			init_url "$1"
+			;;
+		"-n"|"--name")
+			shift
+			desired_name="$1"
+			;;
+		*)
+			[ -z "$url" -a -z "$container" ] &&
+				container="$value" ||
+				break
+			;;
+	esac
+
+	valid="$?"
+	[ "$valid" -ne "0" ] && return 1
+
+	shift && [ -n "$1" ] || break
+done
+
+[ "$valid" -eq 0 ] &&
 	init_variables &&
 	check_container_name "$container" &&
 	ensure_dirs "$base_tmp_dir" "$img_dir" &&
 	container_not_exists "$desired_name" &&
-	download "$downloaded_location" "$container" "$url" &&
+	download "$downloaded_location" "$container" "$url" "$@" &&
 	extract_container "$base_tmp_dir" "$downloaded_location" "$img_dir" "$desired_name"
