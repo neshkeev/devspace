@@ -28,12 +28,13 @@ function perform_checks() {
 
 function container_already_active() {
 	local target_container_location="$1"
+	local container="$2"
 
 	[ -d "$target_container_location" ] && {
 		warn 'The "%s" container has been brought up previously. It will not be reloaded from the disk.' "$container"
-		warn 'If you need to reload it remove the "%s" directory and start the container again:\n\tsudo rm -rf "%s"\n\n' \
-			"$target_container_location" \
-			"$target_container_location"
+		warn 'If you need to reload it remove the "%s" container and start the container again:\n\tds rm -b %s\n\n' \
+			"$container" \
+			"$container"
 	}
 }
 
@@ -47,7 +48,7 @@ function copy_to_ram() {
 		success 'The "%s" container is available at "%s".\n' "$container" "$target_container_location"
 }
 
-container_already_active "$target_container_location" || {
+container_already_active "$target_container_location" "$container" || {
 	perform_checks &&
 	copy_to_ram "$container" "$target_container_location"
 }

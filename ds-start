@@ -9,7 +9,7 @@ function bring_container_up() {
 	local img_dir="$2"
 	local ram_dir="$3"
 
-	sudo "$ROOT_DIR"/container-up "$container" "$img_dir" "$ram_dir"
+	sudo "$ROOT_DIR"/container-up "$container" "$img_dir" "$ram_dir" "n"
 }
 
 function start_container() {
