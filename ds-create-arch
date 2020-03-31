@@ -1,7 +1,5 @@
 #! /usr/bin/env bash
 
-set +x
-
 ROOT_DIR="$(dirname "$0")"
 source "$ROOT_DIR"/util.sh || exit 1
 
@@ -32,7 +30,6 @@ function checks() {
 	local container_name="$1"
 	local img_dir="$2"
 	local container_dir="$3"
-
 
 	check_container_name "$container_name" &&
 		ensure_dirs "$img_dir" &&
@@ -110,6 +107,10 @@ while : ; do
 			container_name="$1"
 			;;
 		"-p"|"--packages")
+			[ -z "$container_name" ] && {
+				error '"%s" cannot appear before "-n/--name"' "$value"
+				exit 1
+			}
 			shift
 			break;
 			;;
@@ -118,7 +119,7 @@ while : ; do
 			exit 1
 	esac
 
-	shift
+	shift && [ -z "$1" ] || break
 done
 
 img_dir=$(get_img_dir)
