@@ -33,8 +33,10 @@ function checks() {
 	local img_dir="$2"
 	local container_dir="$3"
 
+
 	check_container_name "$container_name" &&
 		ensure_dirs "$img_dir" &&
+		check_tool_installed <<<"pacstrap" &&
 		[ -n "$container_dir" ] || return 1
 
 	container_not_exists "$container_name" || {

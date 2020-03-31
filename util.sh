@@ -137,7 +137,11 @@ function check_dir_of_fs() {
 }
 
 function check_tools_installed() {
-	for tool in which df rsync systemd-nspawn sudo grep awk curl sed tar ;
+	printf "%s\n" which df rsync systemd-nspawn sudo grep awk curl sed tar | check_tool_installed
+}
+
+function check_tool_installed() {
+	while read tool
 	do
 		type "$tool" >/dev/null 2>&1 || {
 			error '%s [NOT FOUND]' "$tool"
