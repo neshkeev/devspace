@@ -1,0 +1,176 @@
+#! /usr/bin/env bash
+
+set +x
+
+ROOT_DIR="$(dirname "$0")"
+source "$ROOT_DIR"/util.sh || exit 1
+
+function parse_args() {
+	while : ; do
+		local value="$1"
+		case "$value" in
+			"-n"|"--name")
+				shift
+				container_name="$1"
+				[ -n "$options" ] && break
+				;;
+			"-s"|"--suite")
+				shift
+				suite="$1"
+				;;
+			"-p"|"--packages")
+				shift
+				packages="$1"
+				;;
+		esac
+
+		shift && [ -n "$1" ] || break
+	done
+}
+
+function init_args() {
+	local container_name="$1"
+	local img_dir="$2"
+
+	container_dir="$img_dir"/"$container_name"
+}
+
+function container_not_exists() {
+	local container_name="$1"
+	list_local_containers | grep -q -e "^$container_name$" || return 0
+
+	error 'Container "%s" already exists' "$container_name"
+}
+
+function should_remove() {
+	local container_dir="$1"
+
+	read -p "Proceed with removing '$container_dir'? [Y/n] " confirm
+	local confirm=${confirm:-Y}
+
+	[ "${confirm^^}" == "Y" ]
+}
+
+function checks() {
+	local container_name="$1"
+	local img_dir="$2"
+	local container_dir="$3"
+	local suite="$4"
+
+	check_container_name "$container_name" &&
+		ensure_dirs "$img_dir" &&
+		check_tool_installed <<<"debootstrap" &&
+		[ -n "$container_dir" ] || return 1
+
+	[ -n "$suite" ] || {
+		error 'Suite cannot be empty'
+		return 1
+	}
+
+	container_not_exists "$container_name" || {
+		should_remove "$container_dir" &&
+		sudo rm -r "$container_dir" &&
+		success 'The "%s" directory removed' "$container_dir" ||
+		error 'Unable to remove the "%s" directory' "$container_dir"
+	}
+}
+
+function create_container_dir() {
+	local container_dir="$1"
+	[ -d "$container_dir" ] && {
+		warn 'The "%s" directory already exists' "$container_dir"
+
+		should_remove "$container_dir" && sudo rm -r "$container_dir"
+	}
+
+	mkdir -pv "$container_dir" | success_stdin
+}
+
+function install_distro() {
+	local container_name="$1"
+	local suite="$2"
+	local packages="$3"
+	local url="${4:-http://archive.ubuntu.com/ubuntu/}"
+
+	[ -z "$container_name" -o -z "$suite" ] && return 1
+
+	[ -n "$packages" ] &&
+		local packages="systemd-container,${packages}" ||
+		local packages="systemd-container"
+
+	sudo debootstrap --include="$packages" --components=main,universe "$suite" "$container_dir" "$url"
+}
+
+function enable_stty() {
+	local container_dir="$1"
+	local securetty="$container_dir"/etc/securetty
+
+	sudo find "$securetty" 2> /dev/null &&
+		sudo bash -c "printf 'pts/%s\n' {0..9} >> $securetty" ||
+		error '"%s" NOT FOUND, log in with "root" will not work' "$securetty"
+}
+
+function set_display() {
+	local container_dir="$1"
+	local container_name="$2"
+
+	local display="$DISPLAY"
+	local profile="$container_dir"/root/.profile
+
+	[ -n "$DISPLAY" ] &&
+		sudo bash -c "echo 'export DISPLAY=$DISPLAY' >> $profile" ||
+		warn 'Unable to define "DISPLAY" for the "%s" container. X11 applicaitons will not be working' "$container_name" || true
+
+}
+
+function set_passwd() {
+	local container_dir="$1"
+
+	local profile="$container_dir"/root/.profile
+	local tmp_profile=$(mktemp)
+
+	sudo cp "$profile" "$tmp_profile"
+
+	trap "sudo mv ${tmp_profile} ${profile}" RETURN
+
+	sudo bash -c "printf 'passwd\nlogout' >> $profile"
+	
+	sudo systemd-nspawn -D "$container_dir"
+}
+
+function report_success() {
+	local container_name="$1"
+
+	success 'The "%s" container is ready.' "$container_name"
+	success 'Use the following command to start the container:\n\tds start %s\n' "$container_name"
+}
+
+function report_failure() {
+	local container_name="$1"
+
+	error 'Unable to create the "%s" container' "$container_name"
+}
+
+function set_dns() {
+	local container_dir="$1"
+
+	[ -z "$container_dir" ] && return 1
+
+	sudo mkdir -p "$container_dir"/etc/systemd/resolved.conf.d/ &&
+		sudo bash -c "printf '[Resolve]\nDNS=8.8.8.8 1.1.1.1\n' > ${container_dir}/etc/systemd/resolved.conf.d/dns_servers.conf"
+}
+
+img_dir=$(get_img_dir)
+
+parse_args "$@" &&
+	init_args "$container_name" "$img_dir" &&
+	checks "$container_name" "$img_dir" "$container_dir" "$suite" &&
+	create_container_dir "$container_dir" &&
+	install_distro "$container_dir" "$suite" "$packages" &&
+	enable_stty "$container_dir" &&
+	set_display "$container_dir" "$container_name" &&
+	set_passwd "$container_dir" &&
+	set_dns "$container_dir" &&
+	report_success "$container_name" ||
+	report_failure "$container_name"
+
