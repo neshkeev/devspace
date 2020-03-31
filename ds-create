@@ -1,0 +1,16 @@
+#! /usr/bin/env bash
+
+ROOT_DIR="$(dirname "$0")"
+source "$ROOT_DIR"/util.sh || exit 1
+
+command="$1"
+
+case "$command" in
+	*)
+		shift
+		script="ds-create-$command"
+		type "$script" >/dev/null 2>&1 ||
+			error 'unknown command "%s"' "$command" &&
+			"$script" "$@"
+		;;
+esac

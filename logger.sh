@@ -35,6 +35,12 @@ function success() {
 	printf "\033[32m[INFO]: $msg\n\033[0m" "$@"
 }
 
+function success_stdin() {
+	while read msg; do
+		printf "\033[32m[INFO]: $msg\n\033[0m" "$@"
+	done
+}
+
 function warn() {
 	local msg="$1"
 	shift
