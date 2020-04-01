@@ -1,0 +1,36 @@
+#! /usr/bin/env bash
+
+file_name="ds-bash-complete"
+
+function get_command_name() {
+	sed 's,.*/ds-\([^-]\+\).*,\1,'
+}
+
+function find_ds_commands() {
+	local dir="$1"
+	find "$dir" -name "ds-*" -not -name "$file_name" -type f
+}
+
+function get_ds_commands() {
+	while read dir; do
+		find_ds_commands "$dir" | get_command_name
+	done
+}
+
+function ds_commands() {
+	sed -n 's,:,\n,gp' <<<"$PATH" | sort -u | get_ds_commands
+}
+
+function _ds_module() {
+	COMPREPLY=()
+	local cur="${COMP_WORDS[COMP_CWORD]}"
+	local prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+	[ "$prev" == "ds" ] && {
+		COMPREPLY=( $(compgen -W "$(ds_commands)" -- $cur) )
+		return 0
+	}
+
+}
+
+complete -F _ds_module ds
