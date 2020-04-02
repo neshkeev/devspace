@@ -28,6 +28,17 @@ function start_container() {
 	sudo systemd-nspawn -b -D "$target_container" "$bindx11" "$@"
 }
 
+name=$(basename "$0")
+
+case "$1" in
+	"-h"|"--help")
+		echo 'Name: ' "$name"
+		echo 'Description: start a container'
+		printf 'Usage: %s --help | CONTAINER\n' "$name"
+		exit 0
+		;;
+esac
+
 container="$1"
 img_dir=$(get_img_dir)
 ram_dir=$(get_ram_dir)

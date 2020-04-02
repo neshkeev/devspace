@@ -101,4 +101,15 @@ function parse_args() {
 	[ -n "$container" ] || error "No container specified"
 }
 
+name=$(basename "$0")
+
+case "$1" in
+	"-h"|"--help")
+		echo 'Name: ' "$name"
+		echo 'Description: remove a container'
+		printf 'Usage: %s --help | -l CONTAINER | -b BOOTED_CONTAINER\n' "$name"
+		exit 0
+		;;
+esac
+
 parse_args "$@" && remove_container "$option" "$container"

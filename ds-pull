@@ -1,7 +1,5 @@
 #! /usr/bin/env bash
 
-set -x
-
 ROOT_DIR="$(dirname "$0")"
 source "$ROOT_DIR"/util.sh || exit 1
 
@@ -118,10 +116,21 @@ function download() {
 base_tmp_dir=$(get_ds_tmp_dir)
 img_dir=$(get_img_dir)
 
+case "$1" in
+esac
+
+name=$(basename "$0")
+
 while : ; do
 	value="$1"
 
 	case "$value" in
+		"-h"|"--help")
+			echo 'Name: ' "$name"
+			echo 'Description: pull a remote container'
+			printf 'Usage: %s --help | [ REMOTE_CONTAINER | --url URL ] | [ -n, --name TARGET_NAME ]\n' "$name"
+			exit 0
+			;;
 		"--url")
 			shift
 			init_url "$1"

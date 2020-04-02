@@ -63,6 +63,17 @@ function create_archive() {
 	sudo tar --checkpoint=1000 --checkpoint-action=dot -czPf "$target_file" -C "$img_dir" "$container"
 }
 
+name=$(basename "$0")
+
+case "$1" in
+	"-h"|"--help")
+		echo 'Name: ' "$name"
+		echo 'Description: preserve the current state of a container in a tar (gzip) archive'
+		printf 'Usage: %s --help | [ -C, --directory TARGET_DIR ] | [ -n, --name ARCHIVE_NAME ] | CONTAINER\n' "$name"
+		exit 0
+		;;
+esac
+
 parse_args "$@" &&
 	init_args &&
 	validate_args &&

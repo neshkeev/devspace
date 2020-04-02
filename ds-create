@@ -5,10 +5,39 @@ source "$ROOT_DIR"/util.sh || exit 1
 
 command="$1"
 
+name=$(basename "$0")
+
+function get_command_name() {
+	while read command_file; do
+		basename "$command_file" | sed 's,ds-create--\(.*\),\1,'
+	done
+}
+
+function find_ds_create_commands() {
+	local dir="$1"
+	find "$dir" -name "ds-create--*" -type f -executable
+}
+
+function get_ds_commands() {
+	while read dir; do
+		find_ds_create_commands "$dir" | get_command_name
+	done
+}
+
+function get_ds_create_scripts() {
+	# FIXME deduce 'usage' from the ds-create--* scripts in the same way ds does
+	sed -n 's,:,\n,gp' <<<"$PATH" | sort -u | get_ds_commands | sort -u | sed -n 's,.*, | \0,;1h;1!H;${g;s,\n,,gp}'
+}
+
 case "$command" in
+	"-h"|"--help")
+		echo 'Name: ' "$name"
+		echo 'Description: create a container from a script'
+		printf 'Usage: %s --help%s\n' "$name" "$(get_ds_create_scripts)"
+		;;
 	*)
 		shift
-		script="ds-create-$command"
+		script="ds-create--$command"
 		type "$script" >/dev/null 2>&1 ||
 			error 'unknown command "%s"' "$command" &&
 			"$script" "$@"

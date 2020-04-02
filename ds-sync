@@ -32,5 +32,16 @@ function sync_containers() {
 		sync_container "$img_dir"
 }
 
+name=$(basename "$0")
+
+case "$1" in
+	"-h"|"--help")
+		echo 'Name: ' "$name"
+		echo 'Description: synchronize the state of a container(s) from RAM back to disk'
+		printf 'Usage: %s --help | BOOTED_CONTAINER' "$name"
+		exit 0
+		;;
+esac
+
 ensure_dirs "$img_dir" "$ram_dir" &&
 	sync_containers "$img_dir" "$ram_dir" "$container"

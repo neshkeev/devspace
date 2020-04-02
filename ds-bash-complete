@@ -1,24 +1,49 @@
 #! /usr/bin/env bash
 
-file_name="ds-bash-complete"
-
-function get_command_name() {
-	sed 's,.*/ds-\([^-]\+\).*,\1,'
-}
-
-function find_ds_commands() {
-	local dir="$1"
-	find "$dir" -name "ds-*" -not -name "$file_name" -type f
-}
-
-function get_ds_commands() {
-	while read dir; do
-		find_ds_commands "$dir" | get_command_name
-	done
-}
-
 function ds_commands() {
-	sed -n 's,:,\n,gp' <<<"$PATH" | sort -u | get_ds_commands
+	ds --help |
+		sed -n '
+		  /[Uu]sage:/,/^$/{
+		    /[Uu]sage:/s,[Uu]sage:,,;
+		    /^$/d;
+		    /| {/!{
+		      /\bds\b/s,.*\bds\b\s*\(.*\),\1,;
+		      s,^\s*|\s*\(.*\),\1,;
+		      s,\s*|\s*,\n,g;
+		      p;
+		      d;
+	            }
+	            /|\s*{/{
+		      s,.*|\s*{\s*\([^ ]\+\).*,\1,p
+	            }
+		  }
+	  ' | sort -u
+}
+
+function expand_synonims() {
+	sed '/\[/s,\(.*\)\[\s*\([^]]\+\).*,\1 \2,' |
+		sed 's,^\s*\(.*[^ ]\)\s*,\1,;' |
+		sed '
+		  h;
+		  s/.*,.* \(.*\)/\1/;
+		  x;
+		  s/,/\n/;
+
+		'
+}
+
+function ds_command_options() {
+	local cmd="$1"
+	local index="$2"
+
+	ds --help |
+		sed -n "
+                  /|\s*{\s*${cmd}/{
+		    s,.*|\s*{\s*${cmd}\s*\(.*\)\s*},\1,;
+		    s,\s*|\s*,\n,g;
+		    p
+		  }
+	        " | expand_synonims
 }
 
 function _ds_module() {
@@ -26,11 +51,15 @@ function _ds_module() {
 	local cur="${COMP_WORDS[COMP_CWORD]}"
 	local prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-	[ "$prev" == "ds" ] && {
+	[ "$prev" == "${COMP_WORDS[0]}" ] && {
 		COMPREPLY=( $(compgen -W "$(ds_commands)" -- $cur) )
 		return 0
 	}
 
+COMPREPLY=( $(compgen -W "$(ds_command_options "${COMP_WORDS[1]}")" -- $cur) )
+return 0
+
 }
 
-complete -F _ds_module ds
+# complete -F _ds_module ds
+ds_command_options "$1" "1"

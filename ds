@@ -1,5 +1,7 @@
 #! /usr/bin/env bash
 
+set +x
+
 ROOT_DIR="$(dirname "$0")"
 source "$ROOT_DIR"/util.sh || exit 1
 
@@ -9,18 +11,80 @@ function print_version() {
 	sed -n '/version/s,.*=\(.*\),\1,p' VERSION
 }
 
+function get_command_name() {
+	sed 's,.*/ds-\(.*\),\1,'
+}
+
+function find_ds_commands() {
+	local dir="$1"
+	find "$dir" -name "ds-*" -not -name "$file_name" -type f -executable -not -name "*--*" | sort -u
+}
+
+function get_ds_commands() {
+	while read dir; do
+		find_ds_commands "$dir" | get_command_name
+	done
+}
+
+function ds_commands() {
+	sed -n 's,:,\n,gp' <<<"$PATH" | sort -u | get_ds_commands
+}
+
+function get_cmd_help1() {
+	local cmd="$1"
+	"$cmd" --help 2> /dev/null || "$cmd" -h 2> /dev/null || "$cmd" '-?' 2> /dev/null
+}
+
+function get_cmd_help() {
+	local cmd="$1"
+	"ds-$cmd" --help 2> /dev/null || "$cmd" -h 2> /dev/null || "$cmd" '-?' 2> /dev/null
+}
+
+function get_cmd_description() {
+	while read cmd; do
+		get_cmd_help "$cmd" |
+		sed -n '1h;/^Description:/{s,^Description:\s*\(.*\),\1,p;q};${g;p}' | sed "s,^,\t$cmd - ," || echo "\t$cmd"
+	done
+}
+
+function get_cmd_usage() {
+	while read cmd; do
+		local result=$(get_cmd_help "$cmd" | sed -n '/^[Uu]sage/s,[Uu]sage:\s*ds-\(.*\),\1,p')
+		result=${result:-"$cmd"}
+		printf '\n\t| { %s }' "$result"
+	done
+}
+
 function print_help() {
-	local version=$(print_version)
-	printf '\n\tds (%s) - devspace is a tool to provide a means to move all the software engineering work to RAM\n' "$version"
-	printf '\tusage:\n\t\t%s start|list|pull|sync|version|help [OPTIONS]\n\n' "$0"
+	local name=$(basename "$0")
+
+	echo
+	printf 'Name: %s (\033[31mD\033[0mev\033[31mS\033[0mpace)\n' "$name"
+	echo 'Version: ' $(print_version)
+	echo 'Description: a tool to provide a means to move all the software engineering work to RAM'
+
+	echo
+	printf 'Usage:\n  %s --version\n\t| --help|--name\n\t|--target' "$name"
+	# echo "$(ds_commands | get_cmd_usage | sed -n 's,^, | ,;1h;1!H;${g;s,\n,,gp}' )"
+	echo "$(ds_commands | get_cmd_usage )"
+
+	echo
+	echo 'Options:'
+	printf '\t--help - show this help\n'
+	printf '\t--version - show the version\n'
+
+	echo
+	printf 'Commands:\n'
+	printf '%s\n' "$(ds_commands | get_cmd_description)"
+	echo
 }
 
 case "$command" in
-	"version")
+	"-v"|"--version")
 		shift
 		print_version "$@"
 		;;
-	"help")
+	"-h"|"--help")
 		shift
 		print_help "$@"
 		;;

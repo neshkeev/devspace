@@ -77,4 +77,16 @@ function parse_args() {
 	done
 }
 
+name=$(basename "$0")
+
+case "$1" in
+	"-h"|"--help")
+		echo 'Name: ' "$name"
+		echo 'Description: show the list of local, booted and remote containers'
+		printf 'usage: %s -a | -b | -r' "$name"
+		exit 0
+		;;
+esac
+
+
 parse_args "$@" && list_containers "$option" "$filter"
