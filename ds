@@ -27,7 +27,7 @@ function get_ds_commands() {
 }
 
 function ds_commands() {
-	sed -n 's,:,\n,gp' <<<"$PATH" | sort -u | get_ds_commands
+	sed -n 's,:,\n,gp' <<<"$PATH" | sort -u | get_ds_commands | sort -u
 }
 
 function get_cmd_help1() {
