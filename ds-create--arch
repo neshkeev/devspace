@@ -119,7 +119,7 @@ while : ; do
 			exit 1
 	esac
 
-	shift && [ -z "$1" ] || break
+	shift && [ -n "$1" ] || break
 done
 
 img_dir=$(get_img_dir)
