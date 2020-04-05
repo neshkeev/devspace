@@ -64,8 +64,7 @@ function print_help() {
 	echo 'Description: a tool to provide a means to move all the software engineering work to RAM'
 
 	echo
-	printf 'Usage:\n  %s --version\n\t| --help|--name\n\t|--target' "$name"
-	# echo "$(ds_commands | get_cmd_usage | sed -n 's,^, | ,;1h;1!H;${g;s,\n,,gp}' )"
+	printf 'Usage:\n %s --version | --help' "$name"
 	echo "$(ds_commands | get_cmd_usage )"
 
 	echo
