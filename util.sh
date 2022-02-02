@@ -56,7 +56,7 @@ function get_ram_dir() {
 	}
 
 	is_env_set "DS_RAM_DIR" && {
-		echo "${DS_IMG_DIR}"
+		echo "${DS_RAM_DIR}"
 		return 0
 	}
 	is_env_set "DS_HOME" && {
@@ -101,7 +101,7 @@ function ensure_dirs() {
 }
 
 function calc_available_ram() {
-	local percentage=$(("${1:-80}" / 10))
+	local percentage=$(("${1:-90}" / 10))
 	[ "$percentage" -lt 10 ] || {
 		error "Unable to allocate %d%% of RAM" "$((percentage * 10))"
 		return 1
